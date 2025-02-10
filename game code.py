@@ -2,6 +2,7 @@ import pygame
 import os
 import sys
 import random
+import time
 
 
 def load_image(name, colorkey=None):
@@ -33,6 +34,7 @@ class SpiritSprite(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
         self.pos = [x, y]
+        self.start_pos = [x, y]
         self.cur_direction = "left"
         self.exp_direction = "up"
         self.move = True
@@ -42,6 +44,9 @@ class SpiritSprite(pygame.sprite.Sprite):
         self.height = height
         self.way_searching = False
         self.lines = lines
+        self.speed = 6
+        self.injured = False
+        self.injured_image = 'sprites sheets/injured start sheet.png'
 
     def cut_sheet(self, sheet, columns, rows, x, y):
         self.frames = []
@@ -63,7 +68,7 @@ class SpiritSprite(pygame.sprite.Sprite):
         global cells_drawing
         if direction == 'right':
             if ' '.join([str(self.pos[0] + self.t_s), str(self.pos[1])]) in cells_drawing:
-                if cells_drawing[' '.join([str(self.pos[0] + self.t_s), str(self.pos[1])])] == 'empty':
+                if cells_drawing[' '.join([str(self.pos[0] + self.t_s), str(self.pos[1])])] in tales_to_go:
                     return True
                 else:
                     return False
@@ -72,7 +77,7 @@ class SpiritSprite(pygame.sprite.Sprite):
                 return True
         elif direction == 'left':
             if ' '.join([str(self.pos[0] - self.t_s), str(self.pos[1])]) in cells_drawing:
-                if cells_drawing[' '.join([str(self.pos[0] - self.t_s), str(self.pos[1])])] == 'empty':
+                if cells_drawing[' '.join([str(self.pos[0] - self.t_s), str(self.pos[1])])] in tales_to_go:
                     return True
                 else:
                     return False
@@ -82,26 +87,33 @@ class SpiritSprite(pygame.sprite.Sprite):
         elif direction == 'up':
             if cells_drawing[' '.join([str(self.pos[0]), str(self.pos[1] - self.t_s)])] == 'gate':
                 return True
-            elif cells_drawing[' '.join([str(self.pos[0]), str(self.pos[1] - self.t_s)])] == 'empty':
+            elif cells_drawing[' '.join([str(self.pos[0]), str(self.pos[1] - self.t_s)])] in tales_to_go:
                 return True
             else:
                 return False
         elif direction == 'down':
-            if cells_drawing[' '.join([str(self.pos[0]), str(self.pos[1] + self.t_s)])] == 'empty':
+            if cells_drawing[' '.join([str(self.pos[0]), str(self.pos[1] + self.t_s)])] in tales_to_go:
                 return True
             else:
                 return False
 
     def make_move(self, direction):
+        if ' '.join([str(self.pos[0]), str(self.pos[1])]) in cells_drawing:
+            if self.injured:
+                self.speed = 3
+            elif cells_drawing[' '.join([str(self.pos[0]), str(self.pos[1])])] == 'tunel':
+                self.speed = 3
+            else:
+                self.speed = 6
         global spirit_sheets
         if direction == 'right':
-            self.pos[0] += 6
+            self.pos[0] += self.speed
         elif direction == 'left':
-            self.pos[0] -= 6
+            self.pos[0] -= self.speed
         elif direction == 'up':
-            self.pos[1] -= 6
+            self.pos[1] -= self.speed
         elif direction == 'down':
-            self.pos[1] += 6
+            self.pos[1] += self.speed
         self.cut_sheet(spirit_sheets[self.name][direction], 4, 1, self.pos[0], self.pos[1])
 
     def try_cur_move(self):
@@ -122,6 +134,13 @@ class SpiritSprite(pygame.sprite.Sprite):
 
     def update(self):
         global spirit_sheets
+        if self.injured:
+            if self.injured_image == 'sprites sheets/injured end sheet.png':
+                self.cut_sheet(load_image(self.injured_image), 8, 1, self.pos[0],
+                               self.pos[1])
+            else:
+                self.cut_sheet(load_image(self.injured_image), 4, 1, self.pos[0],
+                               self.pos[1])
         self.cur_frame = (self.cur_frame + 1) % len(self.frames)
         self.image = self.frames[self.cur_frame]
         if self.pos[0] == 0 - self.t_s:
@@ -141,6 +160,7 @@ class PacmanSprite(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
         self.pos = [x, y]
+        self.start_pos = [x, y]
         self.cur_direction = "left"
         self.exp_direction = "left"
         self.move = True
@@ -170,9 +190,10 @@ class PacmanSprite(pygame.sprite.Sprite):
 
     def try_cell(self, direction):
         global cells_drawing
+        global tales_to_go
         if direction == 'right':
             if ' '.join([str(self.pos[0] + self.t_s), str(self.pos[1])]) in cells_drawing:
-                if cells_drawing[' '.join([str(self.pos[0] + self.t_s), str(self.pos[1])])] == 'empty':
+                if cells_drawing[' '.join([str(self.pos[0] + self.t_s), str(self.pos[1])])] in tales_to_go:
                     return True
                 else:
                     return False
@@ -181,7 +202,7 @@ class PacmanSprite(pygame.sprite.Sprite):
                 return True
         elif direction == 'left':
             if ' '.join([str(self.pos[0] - self.t_s), str(self.pos[1])]) in cells_drawing:
-                if cells_drawing[' '.join([str(self.pos[0] - self.t_s), str(self.pos[1])])] == 'empty':
+                if cells_drawing[' '.join([str(self.pos[0] - self.t_s), str(self.pos[1])])] in tales_to_go:
                     return True
                 else:
                     return False
@@ -189,12 +210,12 @@ class PacmanSprite(pygame.sprite.Sprite):
                 cells_drawing[' '.join([str(self.pos[0] - self.t_s), str(self.pos[1])])] = 'empty'
                 return True
         elif direction == 'up':
-            if cells_drawing[' '.join([str(self.pos[0]), str(self.pos[1] - self.t_s)])] == 'empty':
+            if cells_drawing[' '.join([str(self.pos[0]), str(self.pos[1] - self.t_s)])] in tales_to_go:
                 return True
             else:
                 return False
         elif direction == 'down':
-            if cells_drawing[' '.join([str(self.pos[0]), str(self.pos[1] + self.t_s)])] == 'empty':
+            if cells_drawing[' '.join([str(self.pos[0]), str(self.pos[1] + self.t_s)])] in tales_to_go:
                 return True
             else:
                 return False
@@ -238,6 +259,7 @@ cells_drawing = {}
 cells = []
 all_directions = ['right', 'left', 'up', 'down']
 opposite_directions = {'right': 'left', 'left': 'right', 'up': 'down', 'down': 'up'}
+tales_to_go = ['empty', 'tunel', 'power']
 
 spirit_sheets = {'red': {"up": load_image("sprites sheets/red spirit/red sheet top.png"),
                          "down": load_image("sprites sheets/red spirit/red sheet bottom.png"),
@@ -276,6 +298,8 @@ def main():
     clock = pygame.time.Clock()
     FPS = 36
     countdown = 0
+    power_countdown = 0
+    power_eaten = False
     death_frame = 0
     lives = 3
 
@@ -287,6 +311,10 @@ def main():
                 cells_drawing[' '.join([str(x * tile_size), str(y * tile_size)])] = 'wall'
             elif lines[y][x] == "_":
                 cells_drawing[' '.join([str(x * tile_size), str(y * tile_size)])] = 'gate'
+            elif lines[y][x] == '-':
+                cells_drawing[' '.join([str(x * tile_size), str(y * tile_size)])] = 'tunel'
+            elif lines[y][x] == '*':
+                cells_drawing[' '.join([str(x * tile_size), str(y * tile_size)])] = 'power'
             elif lines[y][x] == 'o':
                 cells_drawing[' '.join([str(x * tile_size), str(y * tile_size)])] = 'empty'
                 orange_spirit = SpiritSprite(all_sprites,
@@ -295,7 +323,8 @@ def main():
                 orange_spirit.exp_direction = 'left'
             elif lines[y][x] == 'p':
                 cells_drawing[' '.join([str(x * tile_size), str(y * tile_size)])] = 'empty'
-                pink_spirit = SpiritSprite(all_sprites, load_image("sprites sheets/pink spirit/pink sheet bottom.png"), 4,
+                pink_spirit = SpiritSprite(all_sprites, load_image("sprites sheets/pink spirit/pink sheet bottom.png"),
+                                           4,
                                            1, x * tile_size, y * tile_size, tile_size, width, height, lines, 'pink')
                 pink_spirit.exp_direction = 'up'
             elif lines[y][x] == 'b':
@@ -314,11 +343,18 @@ def main():
                                       x * tile_size, y * tile_size, tile_size, width, height, lines)
                 pacman.exp_direction = 'left'
             cells.append([x * tile_size, y * tile_size])
-    
+
+    ready_word = pygame.sprite.Sprite()
+    ready_word.image = load_image("words/ready.png")
+    ready_word.rect = ready_word.image.get_rect()
+    ready_word.rect.x = tile_size * 8
+    ready_word.rect.y = tile_size * 12 + tile_size // 4
+    ready.add(ready_word)
+
     running = True
     while running:
         if lives == 0:
-            running = False
+            break
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -345,62 +381,107 @@ def main():
             for j in range(y_size):
                 if cells_drawing[' '.join([str(i * tile_size), str(j * tile_size)])] == 'wall':
                     pygame.draw.rect(screen, (0, 0, 255), (i * tile_size, j * tile_size, tile_size, tile_size))
-        all_sprites.draw(screen)
+                elif cells_drawing[' '.join([str(i * tile_size), str(j * tile_size)])] == 'power':
+                    pygame.draw.circle(screen, (255, 255, 255),
+                                       (i * tile_size + (tile_size // 2), j * tile_size + (tile_size // 2)), 14)
+        if countdown < FPS * 3:
+            ready.draw(screen)
+        else:
+            all_sprites.draw(screen)
         if countdown >= FPS * 5:
+            if power_countdown < 3 * FPS:
+                red_spirit.injured_image = 'sprites sheets/injured start sheet.png'
+                orange_spirit.injured_image  = 'sprites sheets/injured start sheet.png'
+                blue_spirit.injured_image = 'sprites sheets/injured start sheet.png'
+                pink_spirit.injured_image = 'sprites sheets/injured start sheet.png'
+            elif 3 * FPS <= power_countdown < 5 * FPS:
+                red_spirit.injured_image = 'sprites sheets/injured end sheet.png'
+                orange_spirit.injured_image = 'sprites sheets/injured end sheet.png'
+                blue_spirit.injured_image = 'sprites sheets/injured end sheet.png'
+                pink_spirit.injured_image = 'sprites sheets/injured end sheet.png'
+            else:
+                red_spirit.injured = False
+                orange_spirit.injured = False
+                blue_spirit.injured = False
+                pink_spirit.injured = False
+                power_eaten = False
+                power_countdown = 0
             if [round(pacman.pos[0] / tile_size, 0), round(pacman.pos[1] / tile_size, 1)] == [
                 round(red_spirit.pos[0] / tile_size, 0), round(red_spirit.pos[1] / tile_size, 0)]:
-                pacman.move = False
-                red_spirit.move = False
-                orange_spirit.move = False
-                blue_spirit.move = False
-                pink_spirit.move = False
-                pacman.cut_sheet(load_image("sprites sheets/pacman/pacman death sheet.png"), 14, 1, pacman.pos[0],
-                                 pacman.pos[1])
-                pacman.eaten = True
-                FPS = 5
+                if red_spirit.injured:
+                    red_spirit.pos = red_spirit.start_pos
+                    red_spirit.injured = False
+                    red_spirit.exp_direction = 'up'
+                else:
+                    pacman.move = False
+                    red_spirit.move = False
+                    orange_spirit.move = False
+                    blue_spirit.move = False
+                    pink_spirit.move = False
+                    pacman.cut_sheet(load_image("sprites sheets/pacman/pacman death sheet.png"), 14, 1, pacman.pos[0],
+                                     pacman.pos[1])
+                    pacman.eaten = True
+                    FPS = 5
             elif [round(pacman.pos[0] / tile_size, 0), round(pacman.pos[1] / tile_size, 1)] == [
                 round(orange_spirit.pos[0] / tile_size, 0), round(orange_spirit.pos[1] / tile_size, 0)]:
-                pacman.move = False
-                red_spirit.move = False
-                orange_spirit.move = False
-                blue_spirit.move = False
-                pink_spirit.move = False
-                pacman.cut_sheet(load_image("sprites sheets/pacman/pacman death sheet.png"), 14, 1, pacman.pos[0],
-                                 pacman.pos[1])
-                pacman.eaten = True
-                FPS = 5
+                if orange_spirit.injured:
+                    orange_spirit.pos = orange_spirit.start_pos
+                    orange_spirit.injured = False
+                    orange_spirit.exp_direction = 'up'
+                else:
+                    pacman.move = False
+                    red_spirit.move = False
+                    orange_spirit.move = False
+                    blue_spirit.move = False
+                    pink_spirit.move = False
+                    pacman.cut_sheet(load_image("sprites sheets/pacman/pacman death sheet.png"), 14, 1, pacman.pos[0],
+                                     pacman.pos[1])
+                    pacman.eaten = True
+                    FPS = 5
             elif [round(pacman.pos[0] / tile_size, 0), round(pacman.pos[1] / tile_size, 1)] == [
                 round(blue_spirit.pos[0] / tile_size, 0), round(blue_spirit.pos[1] / tile_size, 0)]:
-                pacman.move = False
-                red_spirit.move = False
-                orange_spirit.move = False
-                blue_spirit.move = False
-                pink_spirit.move = False
-                pacman.cut_sheet(load_image("sprites sheets/pacman/pacman death sheet.png"), 14, 1, pacman.pos[0],
-                                 pacman.pos[1])
-                pacman.eaten = True
-                FPS = 5
+                if blue_spirit.injured:
+                    blue_spirit.pos = blue_spirit.start_pos
+                    blue_spirit.injured = False
+                    blue_spirit.exp_direction = 'up'
+                else:
+                    pacman.move = False
+                    red_spirit.move = False
+                    orange_spirit.move = False
+                    blue_spirit.move = False
+                    pink_spirit.move = False
+                    pacman.cut_sheet(load_image("sprites sheets/pacman/pacman death sheet.png"), 14, 1, pacman.pos[0],
+                                     pacman.pos[1])
+                    pacman.eaten = True
+                    FPS = 5
             elif [round(pacman.pos[0] / tile_size, 0), round(pacman.pos[1] / tile_size, 1)] == [
                 round(pink_spirit.pos[0] / tile_size, 0), round(pink_spirit.pos[1] / tile_size, 0)]:
-                pacman.move = False
-                red_spirit.move = False
-                orange_spirit.move = False
-                blue_spirit.move = False
-                pink_spirit.move = False
-                pacman.cut_sheet(load_image("sprites sheets/pacman/pacman death sheet.png"), 14, 1, pacman.pos[0],
-                                 pacman.pos[1])
-                pacman.eaten = True
-                FPS = 5
+                if pink_spirit.injured:
+                    pink_spirit.pos = pink_spirit.start_pos
+                    pink_spirit.injured = False
+                    pink_spirit.exp_direction = 'up'
+                else:
+                    pacman.move = False
+                    red_spirit.move = False
+                    orange_spirit.move = False
+                    blue_spirit.move = False
+                    pink_spirit.move = False
+                    pacman.cut_sheet(load_image("sprites sheets/pacman/pacman death sheet.png"), 14, 1, pacman.pos[0],
+                                     pacman.pos[1])
+                    pacman.eaten = True
+                    FPS = 5
             else:
                 if red_spirit.move:
                     if red_spirit.pos in cells:
-                        if cells_drawing[' '.join([str(red_spirit.pos[0]), str(red_spirit.pos[1] - red_spirit.t_s)])] == 'gate':
+                        if cells_drawing[
+                            ' '.join([str(red_spirit.pos[0]), str(red_spirit.pos[1] - red_spirit.t_s)])] == 'gate':
                             red_spirit.exp_direction = 'up'
                             red_spirit.make_move(red_spirit.exp_direction)
                         else:
                             while True:
                                 choice = random.choice(all_directions)
-                                if red_spirit.try_cell(choice) and choice != opposite_directions[red_spirit.exp_direction]:
+                                if red_spirit.try_cell(choice) and choice != opposite_directions[
+                                    red_spirit.exp_direction]:
                                     red_spirit.exp_direction = choice
                                     red_spirit.make_move(red_spirit.exp_direction)
                                     break
@@ -409,13 +490,15 @@ def main():
                     red_spirit.update()
                 if orange_spirit.move:
                     if orange_spirit.pos in cells:
-                        if cells_drawing[' '.join([str(orange_spirit.pos[0]), str(orange_spirit.pos[1] - orange_spirit.t_s)])] == 'gate':
+                        if cells_drawing[' '.join(
+                                [str(orange_spirit.pos[0]), str(orange_spirit.pos[1] - orange_spirit.t_s)])] == 'gate':
                             orange_spirit.exp_direction = 'up'
                             orange_spirit.make_move(orange_spirit.exp_direction)
                         else:
                             while True:
                                 choice = random.choice(all_directions)
-                                if orange_spirit.try_cell(choice) and choice != opposite_directions[orange_spirit.exp_direction]:
+                                if orange_spirit.try_cell(choice) and choice != opposite_directions[
+                                    orange_spirit.exp_direction]:
                                     orange_spirit.exp_direction = choice
                                     orange_spirit.make_move(orange_spirit.exp_direction)
                                     break
@@ -424,13 +507,15 @@ def main():
                     orange_spirit.update()
                 if pink_spirit.move:
                     if pink_spirit.pos in cells:
-                        if cells_drawing[' '.join([str(pink_spirit.pos[0]), str(pink_spirit.pos[1] - pink_spirit.t_s)])] == 'gate':
+                        if cells_drawing[
+                            ' '.join([str(pink_spirit.pos[0]), str(pink_spirit.pos[1] - pink_spirit.t_s)])] == 'gate':
                             pink_spirit.exp_direction = 'up'
                             pink_spirit.make_move(pink_spirit.exp_direction)
                         else:
                             while True:
                                 choice = random.choice(all_directions)
-                                if pink_spirit.try_cell(choice) and choice != opposite_directions[pink_spirit.exp_direction]:
+                                if pink_spirit.try_cell(choice) and choice != opposite_directions[
+                                    pink_spirit.exp_direction]:
                                     pink_spirit.exp_direction = choice
                                     pink_spirit.make_move(pink_spirit.exp_direction)
                                     break
@@ -439,13 +524,15 @@ def main():
                     pink_spirit.update()
                 if blue_spirit.move:
                     if blue_spirit.pos in cells:
-                        if cells_drawing[' '.join([str(blue_spirit.pos[0]), str(blue_spirit.pos[1] - blue_spirit.t_s)])] == 'gate':
+                        if cells_drawing[
+                            ' '.join([str(blue_spirit.pos[0]), str(blue_spirit.pos[1] - blue_spirit.t_s)])] == 'gate':
                             blue_spirit.exp_direction = 'up'
                             blue_spirit.make_move(blue_spirit.exp_direction)
                         else:
                             while True:
                                 choice = random.choice(all_directions)
-                                if blue_spirit.try_cell(choice) and choice != opposite_directions[blue_spirit.exp_direction]:
+                                if blue_spirit.try_cell(choice) and choice != opposite_directions[
+                                    blue_spirit.exp_direction]:
                                     blue_spirit.exp_direction = choice
                                     blue_spirit.make_move(blue_spirit.exp_direction)
                                     break
@@ -454,6 +541,14 @@ def main():
                     blue_spirit.update()
                 if pacman.move:
                     if pacman.pos in cells:
+                        if cells_drawing[' '.join([str(pacman.pos[0]), str(pacman.pos[1])])] == 'power':
+                            power_eaten = True
+                            cells_drawing[' '.join([str(pacman.pos[0]), str(pacman.pos[1])])] = 'empty'
+                            power_countdown = 0
+                            red_spirit.injured = True
+                            blue_spirit.injured = True
+                            orange_spirit.injured = True
+                            pink_spirit.injured = True
                         if pacman.try_exp_move():
                             pacman.cur_direction = pacman.exp_direction
                             pacman.make_move(pacman.cur_direction)
@@ -482,42 +577,70 @@ def main():
                         for y in range(y_size):
                             if lines[y][x] == 'r':
                                 red_spirit = SpiritSprite(all_sprites,
-                                                            load_image("sprites sheets/red spirit/red sheet left.png"), 4,
-                                                            1, x * tile_size, y * tile_size, tile_size, width, height,
-                                                            lines, 'red')
+                                                          load_image("sprites sheets/red spirit/red sheet left.png"), 4,
+                                                          1, x * tile_size, y * tile_size, tile_size, width, height,
+                                                          lines, 'red')
                                 red_spirit.move = True
                             elif lines[y][x] == 'o':
                                 orange_spirit = SpiritSprite(all_sprites,
-                                                                load_image(
-                                                                    "sprites sheets/orange spirit/orange sheet top.png"),  4,
-                                                                1, x * tile_size, y * tile_size, tile_size, width, height,
-                                                                lines, 'orange')
+                                                             load_image(
+                                                                 "sprites sheets/orange spirit/orange sheet top.png"),
+                                                             4,
+                                                             1, x * tile_size, y * tile_size, tile_size, width, height,
+                                                             lines, 'orange')
                                 orange_spirit.move = True
                             elif lines[y][x] == 'b':
                                 blue_spirit = SpiritSprite(all_sprites,
-                                                               load_image("sprites sheets/blue spirit/blue sheet top.png"), 4,
-                                                               1, x * tile_size, y * tile_size, tile_size, width, height,
-                                                               lines, 'blue')
+                                                           load_image("sprites sheets/blue spirit/blue sheet top.png"),
+                                                           4,
+                                                           1, x * tile_size, y * tile_size, tile_size, width, height,
+                                                           lines, 'blue')
                                 blue_spirit.move = True
                             elif lines[y][x] == 'p':
                                 pink_spirit = SpiritSprite(all_sprites,
-                                                               load_image("sprites sheets/pink spirit/pink sheet bottom.png"), 4,
-                                                               1, x * tile_size, y * tile_size, tile_size, width, height,
-                                                               lines, 'pink')
+                                                           load_image(
+                                                               "sprites sheets/pink spirit/pink sheet bottom.png"), 4,
+                                                           1, x * tile_size, y * tile_size, tile_size, width, height,
+                                                           lines, 'pink')
                                 pink_spirit.move = True
                             elif lines[y][x] == "@":
                                 pacman = PacmanSprite(all_sprites,
-                                                          load_image("sprites sheets/pacman/pacman sheet left.png"), 4, 1,
-                                                          x * tile_size, y * tile_size, tile_size, width, height, lines)
+                                                      load_image("sprites sheets/pacman/pacman sheet left.png"), 4, 1,
+                                                      x * tile_size, y * tile_size, tile_size, width, height, lines)
                                 pacman.move = True
                     countdown = -1
                     FPS = 36
                     lives -= 1
+        if power_eaten:
+            power_countdown += 1
         countdown += 1
         pygame.display.flip()
         clock.tick(FPS)
-    pygame.quit()
+    final_countdown = 0
+    game_over = pygame.sprite.Sprite()
+    game_over.image = load_image("words/game over.png")
+    game_over.rect = game_over.image.get_rect()
+    game_over.rect.x = tile_size * 6.5
+    game_over.rect.y = tile_size * 12 + tile_size // 4
+    over.add(game_over)
+    while final_countdown < 3 * FPS:
+        screen.fill((0, 0, 0))
+        for i in range(x_size):
+            for j in range(y_size):
+                if cells_drawing[' '.join([str(i * tile_size), str(j * tile_size)])] == 'wall':
+                    pygame.draw.rect(screen, (0, 0, 255), (i * tile_size, j * tile_size, tile_size, tile_size))
+                elif cells_drawing[' '.join([str(i * tile_size), str(j * tile_size)])] == 'power':
+                    pygame.draw.circle(screen, (255, 255, 255),
+                                       (i * tile_size + (tile_size // 2), j * tile_size + (tile_size // 2)), 14)
+        over.draw(screen)
+        final_countdown += 1
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
 
 if __name__ == '__main__':
+    ready = pygame.sprite.Group()
+    over = pygame.sprite.Group()
     all_sprites = pygame.sprite.Group()
     main()
